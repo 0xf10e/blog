@@ -205,7 +205,7 @@ But WHY??
 ---------
 So I've showed you a hack to decide about the data to put into pillar
 based on pillar before you can access pillar. Not nice, overly complicated [1]_
-and, guess what, it may become obsolete [1]_.
+and, guess what, it may become obsolete.
 
 But you can keep all of your decisions about which minion sees what
 of your data inside pillar and thus on the master.
