@@ -17,7 +17,7 @@ House`_ came up with a `nice workaround`_.
     
 .. _strange behavior: https://github.com/saltstack/salt/issues/11350
 .. _Seth House: https://github.com/whiteinge
-.. _nice workaroung: 
+.. _nice workaround: 
     https://github.com/saltstack/salt/issues/11350#issuecomment-38340122
 .. _salt users mailing list:
 
@@ -41,7 +41,7 @@ So, here's an example:
        `pillar[sshd_config:ListenAdress]`
      * The database-formula expects to get the listen address from
        `pillar[database:server:daemon:listen_address]` and users
-        to create (and passwords for them) under
+       to create (and passwords for them) under
        `pillar[database:user:<username>:password:<password>]`
      * Your webserver's formula goes with a dictionary of domains
        mapped to another dict with settings for this virtual host
@@ -54,11 +54,17 @@ So, here's an example:
        them under `pillar[interfaces:eth0:ipv4]` and 
        `pillar[interfaces:eth1:ipv4`.
 
+.. _formulas: 
+  http://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html
+
 Luckily all the hosts are in the same subnets so the default gateway is
 the same for all of them.
 
 (And just BTW: I'm making those up with some quick looks into some `formulas
 on GitHub`_)
+
+.. _formulas on GitHub:
+  https://github.com/saltstack-formulas
 
 The resulting pillar of minion A should look like this::
 
