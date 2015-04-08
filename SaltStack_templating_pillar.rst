@@ -19,8 +19,9 @@ House`_ came up with a `nice workaround`_.
 .. _Seth House: https://github.com/whiteinge
 .. _nice workaroung: 
     https://github.com/saltstack/salt/issues/11350#issuecomment-38340122
+.. _salt users mailing list:
 
-(Sorry for the rambliness, it's 23:45...)
+(Sorry for the rambliness, I started writing this at 23:45...)
 
 What
 ----
@@ -30,18 +31,24 @@ So, here's an example:
  - You have a bunch of servers with a public and a private IP each
  - SSH and some database are supposed to listen only on the private IP,
    the webserver's virtual host for the company website on the public one
+ - The webapp running on the webserver needs the database password which
+   has to be set on the database server
  - You don't want to write *all* your states and config templates yourself
    so you're using some formulas_, but they expect the particular IP in
    predefined places in pillar
 
      * The SSH-formula wants it's ListenAddress under 
        `pillar[sshd_config:ListenAdress]`
-     * The database-formula expects 
-       `pillar[database:server:daemon:listen_address]`
-     * And your webserver's formula goes with a dictionary of domains
+     * The database-formula expects to get the listen address from
+       `pillar[database:server:daemon:listen_address]` and users
+        to create (and passwords for them) under
+       `pillar[database:user:<username>:password:<password>]`
+     * Your webserver's formula goes with a dictionary of domains
        mapped to another dict with settings for this virtual host
        resulting in `pillar[httpserver:vhosts:example.com:address]`
        for the corresponding IP.
+     * The webapp wants its database credentials in
+        `pillar[webapp:db_user]` and `pillar[webapp:db_pass]`
      * Oh, yeah, and you want the internal IP on interface `eth0`
        and the external IP on interface `eth1` so you need to add
        them under `pillar[interfaces:eth0:ipv4]` and 
@@ -61,10 +68,16 @@ The resulting pillar of minion A should look like this::
         server:
             daemon:
                 listen_address: 192.168.2.21
+        user:
+            webapp-user:
+                password: dgaskjgnasgn
     httpserver:
         vhosts:
             example.com:
                 address: 203.aaa.bbb.137
+    webapp:
+        db_user: webapp-user
+        db_pass: dgaskjgnasgn
     interfaces:
         eth0:
             ipv4: 192.168.2.21/24
@@ -75,8 +88,8 @@ The resulting pillar of minion A should look like this::
 Now imagine writing this down 10 or 20 or 30 times only changing two 
 parameters. Sounds like fun, right?
 
-How (simple)
-------------
+How to (simple)
+---------------
 
 Those 16 lines? Just use one template for all of them, right?
 
@@ -93,6 +106,8 @@ Those 16 lines? Just use one template for all of them, right?
             defaults:
                 int_cidr: 192.168.2.21/24
                 ext_cidr: 203.aaa.bbb.137/26
+                db_user: webapp-user
+                db_pass: dgaskjgnasgn
 
 `everything.sls`::
     
@@ -104,6 +119,12 @@ Those 16 lines? Just use one template for all of them, right?
         server:
             daemon:
                 listen_address: {{ int_ip }}
+        user:
+            {{ db_user }}:
+                password: {{ db_pass }}
+    webapp:
+        db_user: {{ db_user }}
+        db_pass: "{{ db_pass }}"
     httpserver:
         vhosts:
             example.com:
@@ -115,6 +136,11 @@ Those 16 lines? Just use one template for all of them, right?
             ipv4: {{ ext_cidr }}
             gateway: 203.aaa.bbb.129
 
+Remember the minion sees the *result* of the templating.
+So can in fact still target "the minion that get's told to
+make its sshd listen on 192.168.2.21" with this::
+
+    salt -I sshd_config:ListenAddress:192.168.2.12 test.ping
 
 How (more complicated than it needs to be)
 ------------------------------------------
@@ -129,6 +155,8 @@ So the topfile stays the same. Our minion's `minion_a.sls` only changes slightly
             defaults:
                 int_cidr: 192.168.2.21/24
                 ext_cidr: 203.aaa.bbb.137/26
+                db_user: webapp-user
+                db_pass: dgaskjgnasgn
                 roles:
                     - webserver
                     - database
@@ -150,11 +178,15 @@ on the elements of the passed list `roles`::
         - webserver:
             defaults:
                 vhost_ip: {{ ext_ip }}
+                db_user: {{ db_user }}
+                db_pass: "{{ db_pass }}"
     {% endif %}
     {% if 'database' in roles %}
-        - webserver:
+        - database: 
             defaults:
                 listen_address: {{ int_ip }}
+                db_user: {{ db_user }}
+                db_pass: {{ db_pass }}
     {% endif %}
 
 You can probably guess how all those tiny templates we include here will
@@ -164,18 +196,34 @@ But WHY??
 ---------
 So I've showed you a hack to decide about the data to put into pillar
 based on pillar before you can access pillar. Not nice, overly complicated
-and, guess what, somewhat obsolete [2]_.
+and, guess what, it may become obsolete [1]_.
 
 But you can keep all of your decisions about which minion sees what
 of your data inside pillar and thus on the master.
 
-Coming to the "obsolete" part: There are `External Pillars`_ and the 
-option `ext_pillar_first`_. 
+Coming to the "may become obsolete" part: There are `External Pillars`_ and the 
+option `ext_pillar_first`_. If the external pillars would be available
+when the master starts parsing the pillar topfile we could define the 
+minions' roles in the external pillar *and use those roles in the topfile*.
+Then it would just be "ext_pillar says your the webserver, give the webapp
+this password for the database" and we wouldn't need all this templating.
+
+Simplest way would be a "cmd_yaml" external pillar grepping the roles
+from file with a name equal to the minion's id::
+
+    ext_pillar_first: True
+    ext_pillar:
+        - cmd_yaml: grep roles /srv/salt/hosts/{minion_id}.sls
+
+To bad this doesn't work [2]_ - yet?
 
 .. _external pillars: 
     http://docs.saltstack.com/en/latest/ref/configuration/master.html#ext-pillar
 .. _`ext_pillar_first`:
     http://docs.saltstack.com/en/latest/ref/configuration/master.html#ext-pillar-first
 
-.. [2] Which of course does mean I have to quite a bit of cleaning up and
-        simplifying things...
+.. [1] Which of course means I'll have quite a bit of cleaning up to do...
+.. [2] See `pull-request 22461`_ "Use 'minion_id' in cmd_{yaml{,ex},json} 
+    ext_pillar functions" on GitHub
+.. _pull-request 22461: https://github.com/saltstack/salt/pull/22461
+
