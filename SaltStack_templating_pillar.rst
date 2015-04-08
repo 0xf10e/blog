@@ -2,7 +2,7 @@ SaltStack: Templating Pillar
 ============================
 
 As I've mentioned a few times on the `salt users mailing list`_ I
-like to template my minion pillar data. When you're using SaltStack
+like to template my minions' pillar data. When you're using SaltStack
 you may already have stumbled over the problem that you can't use
 pillar inside pillar, i.e. use pillar based targeting in you pillar's
 `top.sls`.
@@ -21,7 +21,8 @@ House`_ came up with a `nice workaround`_.
     https://github.com/saltstack/salt/issues/11350#issuecomment-38340122
 .. _salt users mailing list:
 
-(Sorry for the rambliness, I started writing this at 23:45...)
+(Sorry for the rambliness, I started writing this at 23:45 and still 
+don't feel like rewriting everything...)
 
 What
 ----
@@ -31,11 +32,11 @@ So, here's an example:
  - You have a bunch of servers with a public and a private IP each
  - SSH and some database are supposed to listen only on the private IP,
    the webserver's virtual host for the company website on the public one
- - The webapp running on the webserver needs the database password which
-   has to be set on the database server
+ - The webapp running on the webserver needs the database credentials  of the user
+   which needs to be created on the database server
  - You don't want to write *all* your states and config templates yourself
-   so you're using some formulas_, but they expect the particular IP in
-   predefined places in pillar
+   so you're using some formulas_, but they expect the particular values in
+   predefined places in pillar:
 
      * The SSH-formula wants it's ListenAddress under 
        `pillar[sshd_config:ListenAdress]`
@@ -45,26 +46,22 @@ So, here's an example:
        `pillar[database:user:<username>:password:<password>]`
      * Your webserver's formula goes with a dictionary of domains
        mapped to another dict with settings for this virtual host
-       resulting in `pillar[httpserver:vhosts:example.com:address]`
+       resulting in `pillar[httpserver:vhosts:<domain>:<address>]`
        for the corresponding IP.
      * The webapp wants its database credentials in
-        `pillar[webapp:db_user]` and `pillar[webapp:db_pass]`
+       `pillar[webapp:db_user]` and `pillar[webapp:db_pass]`
      * Oh, yeah, and you want the internal IP on interface `eth0`
        and the external IP on interface `eth1` so you need to add
        them under `pillar[interfaces:eth0:ipv4]` and 
-       `pillar[interfaces:eth1:ipv4`.
+       `pillar[interfaces:eth1:ipv4]` [0]_.
 
-.. _formulas: 
-  http://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html
+.. [0] That's actually the style I used in the openvswitch-formula_
 
 Luckily all the hosts are in the same subnets so the default gateway is
 the same for all of them.
 
-(And just BTW: I'm making those up with some quick looks into some `formulas
-on GitHub`_)
-
-.. _formulas on GitHub:
-  https://github.com/saltstack-formulas
+(And just BTW: I'm making most of those pillar keys up  - with some quick 
+looks into some `formulas on GitHub`_)
 
 The resulting pillar of minion A should look like this::
 
@@ -93,6 +90,12 @@ The resulting pillar of minion A should look like this::
 
 Now imagine writing this down 10 or 20 or 30 times only changing two 
 parameters. Sounds like fun, right?
+
+.. _formulas: 
+  http://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html
+.. _openvswitch-formula: https://github.com/saltstack-formulas/openvswitch-formula
+.. _formulas on GitHub:
+  https://github.com/saltstack-formulas
 
 How to (simple)
 ---------------
@@ -201,7 +204,7 @@ look like.
 But WHY??
 ---------
 So I've showed you a hack to decide about the data to put into pillar
-based on pillar before you can access pillar. Not nice, overly complicated
+based on pillar before you can access pillar. Not nice, overly complicated [1]_
 and, guess what, it may become obsolete [1]_.
 
 But you can keep all of your decisions about which minion sees what
@@ -219,7 +222,10 @@ from file with a name equal to the minion's id::
 
     ext_pillar_first: True
     ext_pillar:
-        - cmd_yaml: grep roles /srv/salt/hosts/{minion_id}.sls
+        - cmd_yaml: grep roles /srv/pillar/{minion_id}.sls
+
+As the path suggest this would be like "please, salt-master, read this 
+part of the minion's pillar first, you'll need the data in a minute".
 
 To bad this doesn't work [2]_ - yet?
 
@@ -228,7 +234,7 @@ To bad this doesn't work [2]_ - yet?
 .. _`ext_pillar_first`:
     http://docs.saltstack.com/en/latest/ref/configuration/master.html#ext-pillar-first
 
-.. [1] Which of course means I'll have quite a bit of cleaning up to do...
+.. [1] Maybe not in this example but any real setup will be.
 .. [2] See `pull-request 22461`_ "Use 'minion_id' in cmd_{yaml{,ex},json} 
     ext_pillar functions" on GitHub
 .. _pull-request 22461: https://github.com/saltstack/salt/pull/22461
