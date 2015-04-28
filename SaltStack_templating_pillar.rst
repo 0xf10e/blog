@@ -210,6 +210,10 @@ and, guess what, it may become obsolete.
 But you can keep all of your decisions about which minion sees what
 of your data inside pillar and thus on the master.
 
+.. note:: The following paragraph is based on a misunderstanding on my side.
+    `ext_pillar_first`_ causes to external pillars to be *queried* first
+    but they're still not available during pillar-rendering.
+
 Coming to the "may become obsolete" part: There are `External Pillars`_ and the 
 option `ext_pillar_first`_. If the external pillars would be available
 when the master starts parsing the pillar topfile we could define the 
