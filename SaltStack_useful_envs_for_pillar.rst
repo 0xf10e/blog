@@ -11,11 +11,19 @@ An idea I just had: What if we could restrict the pillar-
 environment a state sees?
 
 If in your states topfile you could add an option 
-"pillar_env: foobar"?
+`pillar_env: foobar`? Like this (state topfile)::
 
+    base:
+        'web*.example.com':
+            - match: glob
+            - pillar_env: webserver
+            - apache
+            - memcached
+            - ...
+            
 Not that I can think of an actual usecase for this but
-maybe it's a start of turning the pillar envirnments
-into something useful.
+maybe it's a start of turning the pillar environments
+into something useful?
 
 Idea #2: Limiting the Keys a Pillar-Env can set
 -----------------------------------------------
