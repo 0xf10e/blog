@@ -1,5 +1,5 @@
-DRAFT - SaltStack: Useful Environments for Pillar
-=================================================
+SaltStack: Useful Environments for Pillar
+=========================================
 
 Currently (2015-05) environments for pillar are pretty useless.
 You can specify them in your master's config under `pillar_roots`
