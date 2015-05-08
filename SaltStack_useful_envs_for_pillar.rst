@@ -69,4 +69,5 @@ a minion's pillar completly.
     pillar - Msgpack exception, "Can't serialize datetime object"
     or something like that. Causes the whole pillar of the 
     affected minion to turn into a string and thus become useless
-    because the minion expects a dictionary.
+    because the minion expects a dictionary. Here's the issue:
+    https://github.com/saltstack/salt/issues/23506
